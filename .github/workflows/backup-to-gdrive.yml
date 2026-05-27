@@ -27,7 +27,7 @@ jobs:
 
       - name: Copy repo to Google Drive
         run: |
-          rclone copy . gdrive:${{ github.event.repository.name }} \
+          rclone copy . gdrive: \
             --exclude ".git/**" \
             --exclude ".github/**" \
             --filter "+ README.md" \

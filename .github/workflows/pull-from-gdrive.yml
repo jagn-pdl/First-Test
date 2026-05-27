@@ -30,7 +30,7 @@ jobs:
 
       - name: Check for ITERATE_FILES.txt and decide mode
         run: |
-          rclone copyto "gdrive:${{ github.event.repository.name }}/ITERATE_FILES.txt" ./ITERATE_FILES.txt -v 2>/dev/null || true
+          rclone copyto "gdrive:ITERATE_FILES.txt" ./ITERATE_FILES.txt -v 2>/dev/null || true
           if [ -f ITERATE_FILES.txt ]; then
             echo "PULL_MODE=iterate" >> $GITHUB_ENV
             echo "✅ ITERATE_FILES.txt found — will pull changed files only."
@@ -54,13 +54,13 @@ jobs:
             echo "Pulling: $filepath"
             dir=$(dirname "$filepath")
             mkdir -p "$dir"
-            rclone copyto "gdrive:${{ github.event.repository.name }}/$filepath" "./$filepath" -v
+            rclone copyto "gdrive:$filepath" "./$filepath" -v
           done < ITERATE_FILES.txt
 
       - name: Pull everything from Drive (full mode)
         if: env.PULL_MODE == 'full'
         run: |
-          rclone sync gdrive:${{ github.event.repository.name }} . \
+          rclone sync gdrive: . \
             --exclude ".git/**" \
             --exclude ".github/**" \
             --exclude "node_modules/**" \
