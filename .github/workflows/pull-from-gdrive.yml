@@ -4,20 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type YES to confirm overwrite of repo contents'
-        required: true
+        description: 'Required only for full pull — type YES to confirm overwrite of repo contents (auto-skipped if ITERATE_FILES.txt exists)'
+        required: false
+        default: ''
 
 jobs:
   pull:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Abort if not confirmed
-        if: ${{ github.event.inputs.confirm != 'YES' }}
-        run: |
-          echo "Confirmation not provided. Aborting."
-          exit 1
-
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -33,7 +28,37 @@ jobs:
           printf '[gdrive]\ntype = drive\nscope = drive\ntoken = %s\nroot_folder_id = %s\n' \
             "$GDRIVE_TOKEN" "$GDRIVE_ROOT_FOLDER_ID" > ~/.config/rclone/rclone.conf
 
-      - name: Pull from Google Drive to repo
+      - name: Check for ITERATE_FILES.txt and decide mode
+        run: |
+          rclone copyto "gdrive:${{ github.event.repository.name }}/ITERATE_FILES.txt" ./ITERATE_FILES.txt -v 2>/dev/null || true
+          if [ -f ITERATE_FILES.txt ]; then
+            echo "PULL_MODE=iterate" >> $GITHUB_ENV
+            echo "✅ ITERATE_FILES.txt found — will pull changed files only."
+            cat ITERATE_FILES.txt
+          else
+            echo "PULL_MODE=full" >> $GITHUB_ENV
+            echo "ℹ️ ITERATE_FILES.txt not found — full pull mode."
+          fi
+
+      - name: Abort full pull if not confirmed
+        if: env.PULL_MODE == 'full' && github.event.inputs.confirm != 'YES'
+        run: |
+          echo "❌ Full pull requires confirmation. Re-run this workflow and type YES in the confirm field."
+          exit 1
+
+      - name: Pull only changed files (ITERATE mode)
+        if: env.PULL_MODE == 'iterate'
+        run: |
+          while IFS= read -r filepath || [ -n "$filepath" ]; do
+            [[ -z "$filepath" || "$filepath" == \#* ]] && continue
+            echo "Pulling: $filepath"
+            dir=$(dirname "$filepath")
+            mkdir -p "$dir"
+            rclone copyto "gdrive:${{ github.event.repository.name }}/$filepath" "./$filepath" -v
+          done < ITERATE_FILES.txt
+
+      - name: Pull everything from Drive (full mode)
+        if: env.PULL_MODE == 'full'
         run: |
           rclone sync gdrive:${{ github.event.repository.name }} . \
             --exclude ".git/**" \
@@ -60,11 +85,11 @@ jobs:
             --drive-skip-gdocs \
             -v
 
-      - name: Commit and push changes
+      - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet || git commit -m "Restore from Google Drive [skip ci]"
+          git diff --cached --quiet || git commit -m "Pull from Google Drive [skip ci]"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git push origin main
