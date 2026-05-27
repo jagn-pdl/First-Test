@@ -16,7 +16,13 @@
       "label": "Restore from Google Drive (full)",
       "detail": "Triggers workflow, waits for completion, then auto pulls — no interaction needed",
       "type": "shell",
-      "command": "gh workflow run pull-from-gdrive.yml --ref main --field confirm=YES && (sleep 3 2>/dev/null || Start-Sleep -Seconds 3) && runId=$(gh run list --workflow=pull-from-gdrive.yml --limit 1 --json databaseId --jq '.[0].databaseId') && gh run watch \"$runId\" --exit-status && git pull",
+      "command": "gh workflow run pull-from-gdrive.yml --ref main --field confirm=YES; Start-Sleep -Seconds 3; $runId = (gh run list --workflow=pull-from-gdrive.yml --limit 1 --json databaseId --jq '.[0].databaseId'); gh run watch $runId --exit-status; git pull",
+      "options": {
+        "shell": {
+          "executable": "powershell.exe",
+          "args": ["-Command"]
+        }
+      },
       "group": "build",
       "presentation": {
         "reveal": "always",
@@ -27,7 +33,13 @@
       "label": "Pull Changed Files (ITERATE)",
       "detail": "Reads ITERATE_FILES.txt from Drive and pulls only files changed by last ITERATE session",
       "type": "shell",
-      "command": "gh workflow run pull-iterate-files.yml --ref main && (sleep 3 2>/dev/null || Start-Sleep -Seconds 3) && runId=$(gh run list --workflow=pull-iterate-files.yml --limit 1 --json databaseId --jq '.[0].databaseId') && gh run watch \"$runId\" --exit-status && git pull",
+      "command": "gh workflow run pull-iterate-files.yml --ref main; Start-Sleep -Seconds 3; $runId = (gh run list --workflow=pull-iterate-files.yml --limit 1 --json databaseId --jq '.[0].databaseId'); gh run watch $runId --exit-status; git pull",
+      "options": {
+        "shell": {
+          "executable": "powershell.exe",
+          "args": ["-Command"]
+        }
+      },
       "group": "build",
       "presentation": {
         "reveal": "always",
