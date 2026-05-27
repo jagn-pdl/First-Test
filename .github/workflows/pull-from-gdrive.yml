@@ -1,0 +1,68 @@
+name: Pull from Google Drive
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type YES to confirm overwrite of repo contents'
+        required: true
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Abort if not confirmed
+        if: ${{ github.event.inputs.confirm != 'YES' }}
+        run: |
+          echo "Confirmation not provided. Aborting."
+          exit 1
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install rclone
+        uses: AnimMouse/setup-rclone@v1
+
+      - name: Configure rclone
+        env:
+          GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
+        run: |
+          mkdir -p ~/.config/rclone
+          printf '[gdrive]\ntype = drive\nscope = drive\ntoken = %s\nroot_folder_id = 1LxdBM01phS4BbYylBCCbgI-HcYOHhWJJ\n' "$GDRIVE_TOKEN" > ~/.config/rclone/rclone.conf
+
+      - name: Pull from Google Drive to repo
+        run: |
+          rclone sync gdrive:${{ github.event.repository.name }} . \
+            --exclude ".git/**" \
+            --exclude ".github/**" \
+            --exclude "node_modules/**" \
+            --exclude ".venv/**" \
+            --exclude "venv/**" \
+            --exclude "__pycache__/**" \
+            --exclude "*.pyc" \
+            --exclude "dist/**" \
+            --exclude "build/**" \
+            --exclude ".next/**" \
+            --exclude "out/**" \
+            --exclude "target/**" \
+            --exclude ".gradle/**" \
+            --exclude "vendor/**" \
+            --exclude ".env" \
+            --exclude ".env.local" \
+            --exclude "coverage/**" \
+            --exclude ".pytest_cache/**" \
+            --exclude "*.log" \
+            --filter "+ README.md" \
+            --filter "- *.md" \
+            --drive-skip-gdocs \
+            -v
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Restore from Google Drive [skip ci]"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          git push origin main

@@ -1,0 +1,46 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Backup to Google Drive",
+      "detail": "Stage all, commit, and push — triggers the backup workflow automatically",
+      "type": "shell",
+      "command": "git add -A; git commit -m '${input:commitMessage}'; git push",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Restore from Google Drive (full)",
+      "detail": "Triggers workflow, waits for completion, then auto pulls — no interaction needed",
+      "type": "shell",
+      "command": "gh workflow run pull-from-gdrive.yml --ref main --field confirm=YES && (sleep 3 2>/dev/null || Start-Sleep -Seconds 3) && runId=$(gh run list --workflow=pull-from-gdrive.yml --limit 1 --json databaseId --jq '.[0].databaseId') && gh run watch \"$runId\" --exit-status && git pull",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Pull Changed Files (ITERATE)",
+      "detail": "Reads ITERATE_FILES.txt from Drive and pulls only files changed by last ITERATE session",
+      "type": "shell",
+      "command": "gh workflow run pull-iterate-files.yml --ref main && (sleep 3 2>/dev/null || Start-Sleep -Seconds 3) && runId=$(gh run list --workflow=pull-iterate-files.yml --limit 1 --json databaseId --jq '.[0].databaseId') && gh run watch \"$runId\" --exit-status && git pull",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "commitMessage",
+      "type": "promptString",
+      "description": "Commit message",
+      "default": "update"
+    }
+  ]
+}
